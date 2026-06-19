@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getQdrantClient, ensureCollectionExists, upsertTheses, searchTheses } from '../src/qdrant';
+import { getQdrantClient, ensureCollectionExists, upsertTheses, searchTheses, resetQdrantClient } from '../src/qdrant';
 
 const mockUpsert = vi.fn();
 const mockSearch = vi.fn();
@@ -20,6 +20,7 @@ vi.mock('@qdrant/js-client-rest', () => ({
 describe('Qdrant Client Wrapper', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetQdrantClient();
     process.env.QDRANT_URL = 'https://mock-qdrant:6333';
     process.env.QDRANT_API_KEY = 'mock-key';
   });

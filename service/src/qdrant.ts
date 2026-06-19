@@ -1,7 +1,12 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { ThesisRecord, SearchFilters, SearchResult } from './types';
 
+const COLLECTION_NAME = 'theses';
 let clientInstance: QdrantClient | null = null;
+
+export function resetQdrantClient(): void {
+  clientInstance = null;
+}
 
 export function getQdrantClient(): QdrantClient {
   if (clientInstance) return clientInstance;
@@ -19,22 +24,22 @@ export function getQdrantClient(): QdrantClient {
 export async function ensureCollectionExists(dimension: number): Promise<void> {
   const client = getQdrantClient();
   const collectionsResponse = await client.getCollections();
-  const exists = collectionsResponse.collections.some(c => c.name === 'theses');
+  const exists = collectionsResponse.collections.some(c => c.name === COLLECTION_NAME);
 
   if (!exists) {
-    await client.createCollection('theses', {
+    await client.createCollection(COLLECTION_NAME, {
       vectors: {
         size: dimension,
         distance: 'Cosine',
       },
     });
 
-    await client.createPayloadIndex('theses', {
+    await client.createPayloadIndex(COLLECTION_NAME, {
       field_name: 'year',
       field_schema: 'integer',
     });
 
-    await client.createPayloadIndex('theses', {
+    await client.createPayloadIndex(COLLECTION_NAME, {
       field_name: 'division',
       field_schema: 'keyword',
     });
@@ -45,7 +50,7 @@ export async function upsertTheses(
   points: Array<{ id: string; vector: number[]; payload: ThesisRecord }>
 ): Promise<void> {
   const client = getQdrantClient();
-  await client.upsert('theses', {
+  await client.upsert(COLLECTION_NAME, {
     points: points.map(p => ({
       id: p.id,
       vector: p.vector,
@@ -87,7 +92,7 @@ export async function searchTheses(
     queryParams.filter = { must: mustFilters };
   }
 
-  const response = await client.search('theses', queryParams);
+  const response = await client.search(COLLECTION_NAME, queryParams);
 
   return response.map(r => {
     const payload = r.payload as unknown as ThesisRecord;
