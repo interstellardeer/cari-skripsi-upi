@@ -1,0 +1,13 @@
+{
+  "name": "database",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "hyparquet": "^0.4.0",
+    "@qdrant/js-client-rest": "^1.11.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
