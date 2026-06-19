@@ -26,15 +26,24 @@ export default function SearchDashboard() {
   const [yearTo, setYearTo] = useState('');
   const [division, setDivision] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Vercel AI SDK chat integration
-  const { messages, input, handleInputChange, handleSubmit: handleChatSubmit } = useChat({
+  const {
+    messages,
+    input,
+    handleInputChange,
+    handleSubmit: handleChatSubmit,
+    error: chatError,
+    isLoading: chatLoading
+  } = useChat({
     api: '/api/chat',
   });
 
   const handleSemanticSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     try {
       const filters: any = {};
       if (yearFrom) filters.yearFrom = parseInt(yearFrom);
@@ -46,10 +55,23 @@ export default function SearchDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, filters }),
       });
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          setError("Terlalu banyak permintaan (Rate limit terlampaui). Silakan tunggu satu menit.");
+        } else {
+          setError("Terjadi kesalahan pada sistem. Silakan coba beberapa saat lagi.");
+        }
+        setResults([]);
+        return;
+      }
+
       const data = await response.json();
       setResults(data.results || []);
     } catch (err) {
       console.error(err);
+      setError("Gagal terhubung ke server.");
+      setResults([]);
     } finally {
       setLoading(false);
     }
@@ -87,7 +109,7 @@ export default function SearchDashboard() {
                   className="search-input"
                   required
                 />
-                <button type="submit" className="btn btn-primary">
+                <button type="submit" className="btn btn-primary" disabled={loading}>
                   {loading ? 'Mencari...' : 'Cari'}
                 </button>
               </div>
@@ -134,44 +156,101 @@ export default function SearchDashboard() {
               </div>
             </form>
 
-            <div className="results-grid">
-              {results.length > 0 ? (
-                results.map((r) => (
-                  <div key={r.id} className="result-card glass">
-                    <div className="result-header">
-                      <a href={r.url} target="_blank" rel="noreferrer" className="result-title">
-                        {r.title}
-                      </a>
-                      {r.score !== undefined && (
-                        <span className="result-score">Skor: {r.score.toFixed(3)}</span>
+            {error && (
+              <div
+                className="alert-box glass"
+                style={{
+                  padding: '1rem',
+                  marginBottom: '1.5rem',
+                  border: '1px solid var(--danger)',
+                  borderRadius: '8px',
+                  color: 'var(--danger)',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                <span>⚠️</span>
+                <span>{error}</span>
+              </div>
+            )}
+
+            {loading && (
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '2rem',
+                  color: 'var(--accent)',
+                  fontSize: '1.1rem',
+                  fontWeight: 500
+                }}
+              >
+                Mencari data skripsi...
+              </div>
+            )}
+
+            {!loading && !error && (
+              <div className="results-grid">
+                {results.length > 0 ? (
+                  results.map((r) => (
+                    <div key={r.id} className="result-card glass">
+                      <div className="result-header">
+                        <a href={r.url} target="_blank" rel="noreferrer" className="result-title">
+                          {r.title}
+                        </a>
+                        {r.score !== undefined && (
+                          <span className="result-score">Skor: {r.score.toFixed(3)}</span>
+                        )}
+                      </div>
+                      <p className="result-abstract">{r.abstract}</p>
+                      <div className="result-meta">
+                        <span>Penulis: {r.authors.join(', ')}</span>
+                        <span>Tahun: {r.year}</span>
+                        <span>Fakultas: {r.division}</span>
+                      </div>
+                      {r.keywords.length > 0 && (
+                        <div className="result-tags">
+                          {r.keywords.map((kw, idx) => (
+                            <span key={idx} className="tag">
+                              {kw}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
-                    <p className="result-abstract">{r.abstract}</p>
-                    <div className="result-meta">
-                      <span>Penulis: {r.authors.join(', ')}</span>
-                      <span>Tahun: {r.year}</span>
-                      <span>Fakultas: {r.division}</span>
-                    </div>
-                    {r.keywords.length > 0 && (
-                      <div className="result-tags">
-                        {r.keywords.map((kw, idx) => (
-                          <span key={idx} className="tag">
-                            {kw}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <p style={{ color: 'var(--text-secondary)', textAlign: 'center' }}>
-                  Tidak ada hasil. Silakan lakukan pencarian.
-                </p>
-              )}
-            </div>
+                  ))
+                ) : (
+                  <p style={{ color: 'var(--text-secondary)', textAlign: 'center' }}>
+                    Tidak ada hasil. Silakan lakukan pencarian.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="chat-container glass">
+            {chatError && (
+              <div
+                className="alert-box glass"
+                style={{
+                  padding: '0.75rem 1rem',
+                  marginBottom: '1rem',
+                  border: '1px solid var(--danger)',
+                  borderRadius: '8px',
+                  color: 'var(--danger)',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '0.9rem'
+                }}
+              >
+                <span>⚠️</span>
+                <span>Terjadi kesalahan pada obrolan: {chatError.message}</span>
+              </div>
+            )}
+
             <div className="chat-history">
               {messages.map((m) => (
                 <div key={m.id} className={`chat-bubble ${m.role}`}>
@@ -179,6 +258,15 @@ export default function SearchDashboard() {
                   <div style={{ whiteSpace: 'pre-wrap', marginTop: '0.5rem' }}>{m.content}</div>
                 </div>
               ))}
+              {chatLoading && (
+                <div className="chat-bubble assistant" style={{ opacity: 0.7 }}>
+                  <strong>CariSkripsi AI: </strong>
+                  <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <span>Sedang merumuskan jawaban</span>
+                    <span className="dot-flashing">...</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <form onSubmit={handleChatSubmit} className="search-input-wrapper">
@@ -190,13 +278,17 @@ export default function SearchDashboard() {
                 className="search-input"
                 required
               />
-              <button type="submit" className="btn btn-primary">
-                Kirim
+              <button type="submit" className="btn btn-primary" disabled={chatLoading}>
+                {chatLoading ? 'Mengirim...' : 'Kirim'}
               </button>
             </form>
           </div>
         )}
       </div>
+
+      <footer className="license-footer" style={{ textAlign: 'center', padding: '2rem 0', marginTop: '2rem', borderTop: '1px solid var(--border-color)' }}>
+        Dataset berlisensi CC BY-SA 4.0 — Repositori UPI
+      </footer>
     </div>
   );
 }

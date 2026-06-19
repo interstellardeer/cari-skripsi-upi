@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { semanticSearch } from 'service';
+import { semanticSearch, SearchFiltersSchema } from 'service';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../lib/auth';
 
@@ -12,8 +12,9 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { query, limit, filters } = body;
+    const validatedFilters = filters ? SearchFiltersSchema.parse(filters) : undefined;
     const startTime = Date.now();
-    const results = await semanticSearch(query, filters, limit);
+    const results = await semanticSearch(query, validatedFilters, limit);
     const queryTime = Date.now() - startTime;
     return NextResponse.json({ results, total: results.length, queryTime });
   } catch (error: any) {

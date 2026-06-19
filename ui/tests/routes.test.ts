@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 
+const SearchFiltersSchema = {
+  parse: (val: any) => val,
+};
+
 const searchHandler = async (req: Request) => {
   const mod = await import('../app/api/search/route');
   return mod.POST(req);
@@ -20,6 +24,7 @@ if (typeof Bun !== 'undefined') {
     semanticSearch: () => Promise.resolve([
       { id: '1', title: 'Skripsi Mock', score: 0.99 }
     ]),
+    SearchFiltersSchema,
   }));
 
   mock.module('next-auth', () => ({
@@ -73,6 +78,7 @@ vi.mock('service', () => ({
   semanticSearch: vi.fn().mockResolvedValue([
     { id: '1', title: 'Skripsi Mock', score: 0.99 }
   ]),
+  SearchFiltersSchema,
 }));
 
 vi.mock('next-auth', () => ({
