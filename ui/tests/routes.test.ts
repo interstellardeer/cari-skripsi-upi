@@ -1,6 +1,73 @@
 import { describe, it, expect, vi } from 'vitest';
-import { POST as searchHandler } from '../app/api/search/route';
-import { POST as chatHandler } from '../app/api/chat/route';
+
+const searchHandler = async (req: Request) => {
+  const mod = await import('../app/api/search/route');
+  return mod.POST(req);
+};
+
+const chatHandler = async (req: Request) => {
+  const mod = await import('../app/api/chat/route');
+  return mod.POST(req);
+};
+
+let mockSessionValue: any = { user: { email: 'mhs@upi.edu' } };
+
+// Bun-compatible mocks for bun test runner
+if (typeof Bun !== 'undefined') {
+  const { mock } = require('bun:test');
+  
+  mock.module('service', () => ({
+    semanticSearch: () => Promise.resolve([
+      { id: '1', title: 'Skripsi Mock', score: 0.99 }
+    ]),
+  }));
+
+  mock.module('next-auth', () => ({
+    getServerSession: () => Promise.resolve(mockSessionValue),
+  }));
+
+  mock.module('ai', () => ({
+    streamText: () => Promise.resolve({
+      toDataStreamResponse: () => new Response('Mock stream response'),
+    }),
+    embed: () => Promise.resolve({
+      embedding: [0.1, 0.2],
+    }),
+    generateText: () => Promise.resolve({
+      text: 'pembelajaran matematika',
+    }),
+  }));
+
+  mock.module('@ai-sdk/openai', () => {
+    const mockOpenAI = () => 'mock-model';
+    (mockOpenAI as any).embedding = () => 'mock-embedding-model';
+    return {
+      createOpenAI: () => mockOpenAI,
+    };
+  });
+
+  mock.module('@qdrant/js-client-rest', () => {
+    class MockQdrantClient {
+      search() {
+        return Promise.resolve([
+          {
+            payload: {
+              title: 'Skripsi Mock Chat',
+              abstract: 'Abstrak...',
+              authors: ['Penulis'],
+              year: 2026,
+              division: 'IK',
+              url: 'https://upi.edu/1',
+            },
+          },
+        ]);
+      }
+    }
+    return {
+      QdrantClient: MockQdrantClient,
+    };
+  });
+}
 
 vi.mock('service', () => ({
   semanticSearch: vi.fn().mockResolvedValue([
@@ -9,7 +76,7 @@ vi.mock('service', () => ({
 }));
 
 vi.mock('next-auth', () => ({
-  getServerSession: vi.fn().mockResolvedValue({ user: { email: 'mhs@upi.edu' } }),
+  getServerSession: vi.fn().mockImplementation(() => Promise.resolve(mockSessionValue)),
 }));
 
 vi.mock('ai', () => ({
@@ -65,6 +132,18 @@ describe('POST /api/search handler', () => {
     expect(data.results).toHaveLength(1);
     expect(data.results[0].title).toBe('Skripsi Mock');
   });
+
+  it('should return 401 when there is no active session', async () => {
+    mockSessionValue = null;
+    const mockRequest = new Request('https://upi.edu/api/search', {
+      method: 'POST',
+      body: JSON.stringify({ query: 'pembelajaran matematika', limit: 5 }),
+    });
+
+    const response = await searchHandler(mockRequest);
+    expect(response.status).toBe(401);
+    mockSessionValue = { user: { email: 'mhs@upi.edu' } };
+  });
 });
 
 describe('POST /api/chat handler', () => {
@@ -80,5 +159,19 @@ describe('POST /api/chat handler', () => {
     expect(response.status).toBe(200);
     const text = await response.text();
     expect(text).toBe('Mock stream response');
+  });
+
+  it('should return 401 when there is no active session', async () => {
+    mockSessionValue = null;
+    const mockRequest = new Request('https://upi.edu/api/chat', {
+      method: 'POST',
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: 'Cari skripsi tentang AI' }],
+      }),
+    });
+
+    const response = await chatHandler(mockRequest);
+    expect(response.status).toBe(401);
+    mockSessionValue = { user: { email: 'mhs@upi.edu' } };
   });
 });
