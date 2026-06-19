@@ -1,0 +1,5 @@
+{
+  "name": "cari-skripsi-upi",
+  "private": true,
+  "workspaces": ["database", "service", "ui"]
+}
