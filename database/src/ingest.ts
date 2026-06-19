@@ -18,18 +18,31 @@ export async function runIngestionPipeline(filePath: string): Promise<void> {
     const chunk = records.slice(i, i + batchSize);
     console.log(`Processing batch ${i / batchSize + 1} (${chunk.length} items)...`);
 
-    const points = await Promise.all(
-      chunk.map(async (record) => {
-        // Embed the title and abstract combination
-        const textToEmbed = `${record.title} — ${record.abstract}`;
-        const vector = await getEmbedding(textToEmbed);
-        return {
-          id: record.id,
-          vector,
-          payload: record,
-        };
-      })
-    );
+    const points = [];
+    for (const record of chunk) {
+      const textToEmbed = `${record.title} — ${record.abstract}`;
+      let vector: number[] | null = null;
+      const maxAttempts = 3;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          vector = await getEmbedding(textToEmbed);
+          break;
+        } catch (error) {
+          if (attempt === maxAttempts) {
+            throw error;
+          }
+          console.warn(`Attempt ${attempt} to get embedding failed for record ${record.id}. Retrying in 500ms... Error:`, error);
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+      }
+
+      points.push({
+        id: record.id,
+        vector: vector!,
+        payload: record,
+      });
+    }
 
     await upsertTheses(points);
     console.log(`Successfully upserted batch ${i / batchSize + 1}`);
