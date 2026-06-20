@@ -4,7 +4,15 @@ node_modules/
 dist/
 .next/
 out/
+
+# Dataset files — download separately, never commit
+data/
 *.parquet
-database/data/
+*.zip
+
+# TypeScript build artifacts
+*.tsbuildinfo
+
+# Tooling
 .turbo
 .vercel
