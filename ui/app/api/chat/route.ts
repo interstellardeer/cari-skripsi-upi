@@ -44,8 +44,9 @@ export async function POST(req: Request) {
       .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
       .join('\n');
 
+    // ponytail: using openrouter/free to avoid credit reservation and token limits on OpenRouter
     const { text: queryText } = await generateText({
-      model: openRouter('openai/gpt-4o-mini') as any,
+      model: openRouter('openrouter/free') as any,
       system: 'Reformulasikan input akademik menjadi 2-5 kata kunci pencarian skripsi dalam Bahasa Indonesia berdasarkan konteks percakapan. Tuliskan HANYA kata kunci tersebut tanpa tanda baca atau teks penjelasan.',
       prompt: transcript,
       maxTokens: 100,
@@ -91,8 +92,9 @@ Bila data tidak memiliki hubungan apa pun dengan pertanyaan, jawab dengan sopan 
 Data Tesis Terkait:
 ${context}`;
 
+    // ponytail: using openrouter/free to avoid credit reservation and token limits on OpenRouter
     const result = await streamText({
-      model: openRouter('google/gemini-2.5-flash') as any,
+      model: openRouter('openrouter/free') as any,
       system: systemPrompt,
       messages,
       maxTokens: 2000,
