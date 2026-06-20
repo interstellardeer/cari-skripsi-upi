@@ -236,7 +236,7 @@ export default function SearchDashboard() {
                   min={1900}
                   max={2100}
                 />
-                <Select value={division} onValueChange={setDivision}>
+                <Select value={division} onValueChange={(val) => setDivision(val ?? '')}>
                   <SelectTrigger id="faculty-filter" className="w-52">
                     <SelectValue placeholder="Semua Fakultas" />
                   </SelectTrigger>
@@ -247,7 +247,7 @@ export default function SearchDashboard() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={degreeType} onValueChange={setDegreeType}>
+                <Select value={degreeType} onValueChange={(val) => setDegreeType(val ?? '')}>
                   <SelectTrigger id="degree-filter" className="w-32">
                     <SelectValue placeholder="Semua Jenjang" />
                   </SelectTrigger>
