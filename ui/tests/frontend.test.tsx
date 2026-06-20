@@ -101,4 +101,20 @@ describe('SearchDashboard Component Layout', () => {
     expect(getByText('Natural Language (RAG)')).toBeDefined();
     expect(getByPlaceholderText('Cari topik skripsi, misalnya: media pembelajaran berbasis web...')).toBeDefined();
   });
+
+  it('renders semantic search bottom layout elements', () => {
+    const { getByPlaceholderText, getByText, container } = render(React.createElement(SearchDashboard));
+    
+    // Verify search input is present in semantic search view with the correct placeholder and ID
+    const searchInput = container.querySelector('#semantic-search-input');
+    expect(searchInput).not.toBeNull();
+    expect(getByPlaceholderText('Cari topik skripsi, misalnya: media pembelajaran berbasis web...')).toBeDefined();
+    
+    // Verify welcome state query chips are present
+    expect(getByText('pembelajaran berbasis game')).toBeDefined();
+
+    // Verify filter toggle button showing a SlidersHorizontal icon is present
+    const filterIcon = container.querySelector('.lucide-sliders-horizontal');
+    expect(filterIcon).not.toBeNull();
+  });
 });
