@@ -1,7 +1,10 @@
 node_modules/
-.env
-.env.local
-dist/
+
+# Environment variables — never commit real values
+.env*
+# ...but always allow the example templates
+!.env.example
+
 .next/
 out/
 
