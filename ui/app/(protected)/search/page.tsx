@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Search, Send, ExternalLink, Bot, User, SlidersHorizontal, X } from 'lucide-react';
+import { Search, Send, ExternalLink, Bot, User, SlidersHorizontal, X, GraduationCap, Building2, Phone, Mail, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ThesisResult {
@@ -93,6 +93,148 @@ function renderMarkdown(content: string) {
   });
 }
 
+// ponytail: extracted so desktop panel and mobile overlay share one implementation
+function DetailContent({ result, onClose: _onClose }: { result: ThesisResult; onClose: () => void }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    // Show button when not scrolled to bottom
+    const check = () => setShowScrollBtn(el.scrollHeight - el.scrollTop - el.clientHeight > 40);
+    check();
+    el.addEventListener('scroll', check);
+    // Also re-check when content changes
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => { el.removeEventListener('scroll', check); ro.disconnect(); };
+  }, [result]);
+
+  return (
+    <div className="relative flex flex-col h-full">
+      {/* Scrollable content */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto chat-scroll">
+        <div className="p-5 space-y-5">
+          {/* Score */}
+          {result.score !== undefined && (
+            <Badge variant="secondary" className="text-xs">
+              Skor relevansi: {(result.score * 100).toFixed(1)}%
+            </Badge>
+          )}
+
+          {/* Title */}
+          <h2 className="text-base font-semibold leading-snug text-foreground">{result.title}</h2>
+
+          {/* Meta — icon grid for consistent alignment */}
+          <div className="grid grid-cols-[1rem_1fr] items-start gap-x-2.5 gap-y-2">
+            <BookOpen className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+            <span className="text-sm text-muted-foreground">{result.author}</span>
+
+            <GraduationCap className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+            <span className="text-sm text-muted-foreground">{result.degree_type} · {result.year}</span>
+
+            <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+            <span className="text-sm text-muted-foreground">{result.division_name}</span>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex flex-col gap-2">
+            <Button size="sm" className="w-full justify-start gap-2 text-xs h-9" asChild>
+              <a href={result.eprint_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2">
+                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                <span>Buka di Repositori UPI</span>
+              </a>
+            </Button>
+            <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-xs h-9" asChild>
+              <a
+                href={`https://scholar.google.com/citations?hl=en&view_op=search_authors&mauthors=${encodeURIComponent(result.author)}&btnG=`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2"
+              >
+                <Search className="h-3.5 w-3.5 shrink-0" />
+                <span>Cari Penulis di Google Scholar</span>
+              </a>
+            </Button>
+          </div>
+
+          {/* Subject codes */}
+          {result.subject_codes.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Kode Subjek</p>
+              <div className="flex flex-wrap gap-1">
+                {result.subject_codes.map((code, i) => (
+                  <Badge key={i} variant="outline" className="text-xs px-1.5 py-0">{code}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <Separator />
+
+          {/* Abstrak */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2">Abstrak</p>
+            <p className="text-sm leading-relaxed text-foreground text-justify hyphens-auto">
+              {result.abstract_id || result.abstract_en || '—'}
+            </p>
+            {result.abstract_id && result.abstract_en && (
+              <>
+                <p className="text-xs font-medium text-muted-foreground mt-4 mb-2">Abstract (English)</p>
+                <p className="text-sm leading-relaxed text-foreground text-justify hyphens-auto">
+                  {result.abstract_en}
+                </p>
+              </>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Library contact */}
+          <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
+            <p className="text-xs font-semibold text-foreground">Perpustakaan Universitas Pendidikan Indonesia</p>
+            <div className="grid grid-cols-[1rem_1fr] items-start gap-x-2.5 gap-y-2">
+              <Building2 className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+              <span className="text-xs text-muted-foreground">JL. Dr. Setiabudhi No. 229 Bandung 40154</span>
+
+              <Phone className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+              <span className="text-xs text-muted-foreground">022-2019487, 022-2013163 Pes. 4414–4416</span>
+
+              <Phone className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+              <a href="https://wa.me/6285959999300" target="_blank" rel="noreferrer" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
+                0859-5999-9300 (WhatsApp)
+              </a>
+
+              <Mail className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+              <a href="mailto:perpustakaan@upi.edu" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
+                perpustakaan@upi.edu
+              </a>
+            </div>
+          </div>
+
+          {/* bottom sentinel */}
+          <div ref={bottomRef} />
+        </div>
+      </div>
+
+      {/* ponytail: scroll-down indicator — shown when content overflows */}
+      {showScrollBtn && (
+        <button
+          onClick={() => scrollRef.current?.scrollBy({ top: 200, behavior: 'smooth' })}
+          className="absolute bottom-3 right-3 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-background border border-border shadow-md text-muted-foreground hover:text-foreground hover:shadow-lg transition-all animate-bounce"
+          aria-label="Scroll ke bawah"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function SearchDashboard() {
   // Tab states
   const [activeTab, setActiveTab] = useState('semantic');
@@ -107,9 +249,14 @@ export default function SearchDashboard() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  // ponytail: client-side pagination over already-fetched results — no API changes needed
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
+  const [selectedResult, setSelectedResult] = useState<ThesisResult | null>(null);
 
   // Chat
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const resultsScrollRef = useRef<HTMLDivElement>(null);
   const { messages, input, handleInputChange, handleSubmit: handleChatSubmit, isLoading: chatLoading } = useChat({
     api: '/api/chat',
     onError: (err) => toast.error('Terjadi kesalahan: ' + err.message),
@@ -118,6 +265,10 @@ export default function SearchDashboard() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    resultsScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [page]);
 
   // Lock body scroll on mount
   useEffect(() => {
@@ -133,6 +284,7 @@ export default function SearchDashboard() {
     setLoading(true);
     setSearched(true);
     setResults([]);
+    setPage(1);
     try {
       const filters: Record<string, unknown> = {};
       if (yearFrom) filters.yearFrom = parseInt(yearFrom);
@@ -164,11 +316,16 @@ export default function SearchDashboard() {
     }
   };
 
+  // ponytail: derive pagination slice in render, no extra state
+  const totalPages = Math.ceil(results.length / PAGE_SIZE);
+  const pagedResults = results.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="h-dvh flex flex-col overflow-hidden">
       <Navbar />
 
-      <main className="flex-1 flex flex-col min-h-0 w-full h-[calc(100dvh-3.5rem)] overflow-hidden bg-background">
+      {/* ponytail: h-dvh on root caps layout to viewport — prevents body scroll when results load */}
+      <main className="flex-1 flex flex-col min-h-0 w-full overflow-hidden bg-background">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
           <div className="px-4 pt-4 pb-2 shrink-0 w-full">
             <TabsList className="grid grid-cols-2 w-full max-w-md mx-auto">
@@ -179,101 +336,140 @@ export default function SearchDashboard() {
 
           {/* ── SEMANTIC SEARCH ── */}
           <TabsContent value="semantic" className="flex-1 min-h-0 m-0 p-0 border-0 flex flex-col overflow-hidden focus-visible:ring-0 focus-visible:ring-offset-0">
-            {/* Scrollable results area */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 chat-scroll bg-background">
-              <div className="max-w-3xl mx-auto w-full space-y-6">
-                {loading ? (
-                  <div className="space-y-3">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <Card key={i}>
-                        <CardContent className="p-4 space-y-2">
-                          <Skeleton className="h-5 w-3/4" />
-                          <Skeleton className="h-4 w-full" />
-                          <Skeleton className="h-4 w-5/6" />
-                          <div className="flex gap-2 pt-1">
-                            <Skeleton className="h-5 w-16 rounded-full" />
-                            <Skeleton className="h-5 w-16 rounded-full" />
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : !searched ? (
-                  <div className="h-full py-20 flex flex-col items-center justify-center text-center text-muted-foreground text-sm gap-3">
-                    <div className="h-12 w-12 rounded-2xl bg-muted/50 border border-border/50 flex items-center justify-center text-foreground mb-2">
-                      <Search className="h-6 w-6" />
-                    </div>
-                    <p className="text-base md:text-lg font-semibold text-foreground">
-                      Cari skripsi UPI menggunakan pencarian semantik (vektor).
-                    </p>
-                    <p className="text-sm max-w-md">
-                      Masukkan topik pencarian Anda di kolom bawah. Gunakan filter untuk hasil yang lebih spesifik.
-                    </p>
-                    <div className="flex flex-wrap justify-center gap-2 mt-4 max-w-lg">
-                      {['pembelajaran berbasis game', 'kecerdasan buatan dalam pendidikan', 'media pembelajaran berbasis web', 'sistem informasi akademik'].map((chip) => (
-                        <Button
-                          key={chip}
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setQuery(chip)}
-                          className="text-xs rounded-full"
-                        >
-                          {chip}
-                        </Button>
+
+            {/* ponytail: flex-row split — results shrink when panel opens (Claude artifact pattern) */}
+            <div className="flex-1 min-h-0 flex overflow-hidden">
+
+              {/* Left: scrollable results list */}
+              <div ref={resultsScrollRef} className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 space-y-4 chat-scroll bg-background">
+                <div className="max-w-2xl mx-auto w-full space-y-3">
+                  {loading ? (
+                    <div className="space-y-3">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <Card key={i}>
+                          <CardContent className="p-4 space-y-2">
+                            <Skeleton className="h-5 w-3/4" />
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-5/6" />
+                            <div className="flex gap-2 pt-1">
+                              <Skeleton className="h-5 w-16 rounded-full" />
+                              <Skeleton className="h-5 w-16 rounded-full" />
+                            </div>
+                          </CardContent>
+                        </Card>
                       ))}
                     </div>
-                  </div>
-                ) : results.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground text-sm">
-                    Tidak ada hasil untuk &ldquo;{query}&rdquo;.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {results.map((r) => (
-                      <Card key={r.id} className="transition-shadow hover:shadow-md">
-                        <CardHeader className="pb-2 pt-4 px-4">
-                          <div className="flex items-start justify-between gap-4">
-                            <CardTitle className="text-sm font-semibold leading-snug">
-                              <a
-                                href={r.eprint_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="hover:underline underline-offset-4 inline-flex items-center gap-1"
-                              >
-                                {r.title}
-                                <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
-                              </a>
-                            </CardTitle>
-                            {r.score !== undefined && (
-                              <Badge variant="secondary" className="shrink-0 text-xs">
-                                {(r.score * 100).toFixed(1)}%
-                              </Badge>
-                            )}
-                          </div>
-                          <CardDescription className="text-xs">
-                            {r.author} · {r.year} · {r.degree_type} · {r.division_name}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="px-4 pb-4 space-y-2">
-                          <p className="text-sm text-muted-foreground line-clamp-3">
-                            {r.abstract_id || r.abstract_en || '—'}
-                          </p>
-                          {r.subject_codes.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {r.subject_codes.slice(0, 5).map((code, i) => (
-                                <Badge key={i} variant="outline" className="text-xs px-1.5 py-0">
-                                  {code}
-                                </Badge>
-                              ))}
-                            </div>
+                  ) : !searched ? (
+                    <div className="py-20 flex flex-col items-center justify-center text-center text-muted-foreground text-sm gap-3">
+                      <div className="h-12 w-12 rounded-2xl bg-muted/50 border border-border/50 flex items-center justify-center text-foreground mb-2">
+                        <Search className="h-6 w-6" />
+                      </div>
+                      <p className="text-base md:text-lg font-semibold text-foreground">
+                        Cari skripsi UPI menggunakan pencarian semantik (vektor).
+                      </p>
+                      <p className="text-sm max-w-md">
+                        Masukkan topik pencarian Anda di kolom bawah. Gunakan filter untuk hasil yang lebih spesifik.
+                      </p>
+                      <div className="flex flex-wrap justify-center gap-2 mt-4 max-w-lg">
+                        {['pembelajaran berbasis game', 'kecerdasan buatan dalam pendidikan', 'media pembelajaran berbasis web', 'sistem informasi akademik'].map((chip) => (
+                          <Button key={chip} variant="outline" size="sm" onClick={() => setQuery(chip)} className="text-xs rounded-full">
+                            {chip}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : results.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground text-sm">
+                      Tidak ada hasil untuk &ldquo;{query}&rdquo;.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {pagedResults.map((r) => (
+                        <Card
+                          key={r.id}
+                          className={cn(
+                            'transition-all hover:shadow-md cursor-pointer select-none',
+                            selectedResult?.id === r.id && 'ring-2 ring-primary'
                           )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
+                          onClick={() => setSelectedResult(selectedResult?.id === r.id ? null : r)}
+                        >
+                          <CardHeader className="pb-2 pt-4 px-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <CardTitle className="text-sm font-semibold leading-snug">{r.title}</CardTitle>
+                              {r.score !== undefined && (
+                                <Badge variant="secondary" className="shrink-0 text-xs">
+                                  {(r.score * 100).toFixed(1)}%
+                                </Badge>
+                              )}
+                            </div>
+                            <CardDescription className="text-xs">
+                              {r.author} · {r.year} · {r.degree_type} · {r.division_name}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="px-4 pb-4 space-y-2">
+                            <p className={cn('text-sm text-muted-foreground', selectedResult ? 'line-clamp-2' : 'line-clamp-3')}>
+                              {r.abstract_id || r.abstract_en || '—'}
+                            </p>
+                            {r.subject_codes.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {r.subject_codes.slice(0, selectedResult ? 3 : 5).map((code, i) => (
+                                  <Badge key={i} variant="outline" className="text-xs px-1.5 py-0">{code}</Badge>
+                                ))}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-center gap-2 pt-2 pb-1">
+                          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="h-8 px-3 text-xs">
+                            ← Sebelumnya
+                          </Button>
+                          <span className="text-xs text-muted-foreground tabular-nums">{page} / {totalPages}</span>
+                          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="h-8 px-3 text-xs">
+                            Berikutnya →
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+
+              {/* Right: desktop inline panel — flex sibling so results shrink */}
+              {selectedResult && (
+                <div className="hidden md:flex flex-col w-[420px] shrink-0 border-l bg-background overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
+                    <span className="text-sm font-semibold">Detail Karya Ilmiah</span>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedResult(null)} aria-label="Tutup">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    <DetailContent result={selectedResult} onClose={() => setSelectedResult(null)} />
+                  </div>
+                </div>
+              )}
+
+            </div>{/* end split row */}
+
+            {/* Mobile: full-screen overlay */}
+            {selectedResult && (
+              <>
+                <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setSelectedResult(null)} />
+                <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
+                    <span className="text-sm font-semibold">Detail Karya Ilmiah</span>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedResult(null)} aria-label="Tutup">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    <DetailContent result={selectedResult} onClose={() => setSelectedResult(null)} />
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Sticky bottom form area */}
             <div className="border-t bg-background w-full shrink-0 py-3 md:py-4">
