@@ -2,6 +2,8 @@
 
 **Semantic search engine for Universitas Pendidikan Indonesia's thesis repository**
 
+<img width="1672" height="941" alt="preview-hero" src="https://github.com/user-attachments/assets/073a3d2b-d4c0-49a1-b552-44c14eeee18f" />
+
 A web application that enables authenticated UPI users to discover relevant academic works from ~91,000 theses, dissertations, and research papers using **semantic search** or **natural language queries** powered by vector embeddings and LLM synthesis.
 
 ---
