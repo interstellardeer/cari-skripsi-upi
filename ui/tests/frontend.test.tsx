@@ -88,18 +88,22 @@ describe('Navbar Component', () => {
   });
 
   it('renders real Navbar branding and user email', () => {
-    const { getByText } = render(React.createElement(Navbar));
+    const { getByText, container } = render(React.createElement(Navbar));
     expect(getByText('CariSkripsi')).toBeDefined();
     expect(getByText('MU')).toBeDefined();
+    const logoImg = container.querySelector('img[src="/logo.png"]');
+    expect(logoImg).not.toBeNull();
   });
 });
 
 describe('SearchDashboard Component Layout', () => {
   it('renders search tab triggers and default inputs', () => {
-    const { getByText, getByPlaceholderText } = render(React.createElement(SearchDashboard));
+    const { getByText, getByPlaceholderText, container } = render(React.createElement(SearchDashboard));
     expect(getByText('Pencarian Semantik')).toBeDefined();
     expect(getByText('Natural Language (RAG)')).toBeDefined();
     expect(getByPlaceholderText('Cari topik skripsi, misalnya: media pembelajaran berbasis web...')).toBeDefined();
+    const logoImg = container.querySelector('img[src="/logo.png"]');
+    expect(logoImg).not.toBeNull();
   });
 
   it('renders semantic search bottom layout elements', () => {
