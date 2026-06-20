@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Search, Send, ExternalLink, Bot, User, SlidersHorizontal } from 'lucide-react';
+import { Search, Send, ExternalLink, Bot, User, SlidersHorizontal, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ThesisResult {
@@ -277,10 +277,20 @@ export default function SearchDashboard() {
 
             {/* Sticky bottom form area */}
             <div className="border-t bg-background w-full shrink-0 py-3 md:py-4">
-              <div className="max-w-3xl mx-auto w-full px-4 space-y-2">
+              <div className="max-w-3xl mx-auto w-full px-4 space-y-2 relative">
                 <form onSubmit={handleSemanticSearch} className="space-y-3">
                   {showFilters && (
-                    <div className="bg-muted/50 border border-border/50 p-4 rounded-xl grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="absolute bottom-full left-4 right-4 mb-2 z-20 bg-card border border-border p-4 rounded-xl shadow-lg grid grid-cols-2 md:grid-cols-4 gap-3 animate-slide-up">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 h-6 w-6 text-muted-foreground hover:text-foreground"
+                        onClick={() => setShowFilters(false)}
+                        aria-label="Tutup filter"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
                       <div>
                         <label htmlFor="year-from" className="text-xs font-medium text-muted-foreground mb-1 block">Tahun Dari</label>
                         <Input
@@ -321,7 +331,7 @@ export default function SearchDashboard() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div>
+                      <div className="pr-8">
                         <label htmlFor="degree-filter" className="text-xs font-medium text-muted-foreground mb-1 block">Jenjang</label>
                         <Select value={degreeType} onValueChange={(val) => setDegreeType(val ?? '')}>
                           <SelectTrigger id="degree-filter" className="w-full h-9 text-xs">

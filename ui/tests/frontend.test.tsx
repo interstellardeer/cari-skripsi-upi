@@ -36,7 +36,7 @@ domGlobals.forEach((prop) => {
 });
 
 import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, fireEvent } from '@testing-library/react';
 import React from 'react';
 import Navbar from '../components/Navbar';
 
@@ -116,5 +116,17 @@ describe('SearchDashboard Component Layout', () => {
     // Verify filter toggle button showing a SlidersHorizontal icon is present
     const filterIcon = container.querySelector('.lucide-sliders-horizontal');
     expect(filterIcon).not.toBeNull();
+  });
+
+  it('toggles filter panel and displays close button', async () => {
+    const { getByLabelText, container } = render(React.createElement(SearchDashboard));
+    
+    // Toggle filters ON
+    const filterBtn = getByLabelText('Filter');
+    fireEvent.click(filterBtn);
+    
+    // Verify close icon is rendered
+    const closeIcon = container.querySelector('.lucide-x');
+    expect(closeIcon).not.toBeNull();
   });
 });
