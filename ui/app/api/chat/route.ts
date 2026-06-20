@@ -48,6 +48,7 @@ export async function POST(req: Request) {
       model: openRouter('openai/gpt-4o-mini') as any,
       system: 'Reformulasikan input akademik menjadi 2-5 kata kunci pencarian skripsi dalam Bahasa Indonesia berdasarkan konteks percakapan. Tuliskan HANYA kata kunci tersebut tanpa tanda baca atau teks penjelasan.',
       prompt: transcript,
+      maxTokens: 100,
     });
 
     // 2. Embed the query text
@@ -94,6 +95,7 @@ ${context}`;
       model: openRouter('google/gemini-2.5-flash') as any,
       system: systemPrompt,
       messages,
+      maxTokens: 2000,
     });
 
     return result.toDataStreamResponse();
