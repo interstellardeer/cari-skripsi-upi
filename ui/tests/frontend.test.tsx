@@ -3,9 +3,37 @@ import { JSDOM } from 'jsdom';
 const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
   url: 'http://localhost',
 });
-(globalThis as any).window = dom.window;
-(globalThis as any).document = dom.window.document;
-(globalThis as any).navigator = dom.window.navigator;
+const win = dom.window;
+(globalThis as any).window = win;
+(globalThis as any).document = win.document;
+(globalThis as any).navigator = win.navigator;
+
+// Set up globals from window for floating-ui and base-ui compatibility
+const domGlobals = [
+  'Element',
+  'HTMLElement',
+  'SVGElement',
+  'Node',
+  'customElements',
+  'Location',
+  'History',
+  'Event',
+  'CustomEvent',
+  'MouseEvent',
+  'KeyboardEvent',
+  'FocusEvent',
+  'PointerEvent',
+  'VisualViewport',
+  'ResizeObserver',
+  'IntersectionObserver',
+  'MutationObserver'
+];
+
+domGlobals.forEach((prop) => {
+  if (prop in win) {
+    (globalThis as any)[prop] = (win as any)[prop];
+  }
+});
 
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
@@ -14,7 +42,37 @@ import Navbar from '../components/Navbar';
 
 vi.mock('next-auth/react', () => ({
   signOut: vi.fn(),
+  useSession: () => ({
+    data: {
+      user: {
+        name: 'Mahasiswa UPI',
+        email: 'mhs@upi.edu',
+        image: 'https://example.com/avatar.png',
+      },
+    },
+    status: 'authenticated',
+  }),
 }));
+
+vi.mock('next-themes', () => ({
+  useTheme: () => ({
+    theme: 'light',
+    setTheme: vi.fn(),
+  }),
+}));
+
+vi.mock('ai/react', () => ({
+  useChat: () => ({
+    messages: [],
+    input: '',
+    handleInputChange: vi.fn(),
+    handleSubmit: vi.fn(),
+    isLoading: false,
+  }),
+}));
+
+import SearchDashboard from '../app/(protected)/search/page';
+
 
 describe('Navbar Component', () => {
   it('renders branding and logout button (mock/stub)', () => {
@@ -30,7 +88,17 @@ describe('Navbar Component', () => {
   });
 
   it('renders real Navbar branding and user email', () => {
-    const { getByText } = render(React.createElement(Navbar, { userEmail: 'mhs@upi.edu' }));
-    expect(getByText('mhs@upi.edu')).toBeDefined();
+    const { getByText } = render(React.createElement(Navbar));
+    expect(getByText('CariSkripsi')).toBeDefined();
+    expect(getByText('MU')).toBeDefined();
+  });
+});
+
+describe('SearchDashboard Component Layout', () => {
+  it('renders search tab triggers and default inputs', () => {
+    const { getByText, getByPlaceholderText } = render(React.createElement(SearchDashboard));
+    expect(getByText('Pencarian Semantik')).toBeDefined();
+    expect(getByText('Natural Language (RAG)')).toBeDefined();
+    expect(getByPlaceholderText('Cari topik skripsi, misalnya: media pembelajaran berbasis web...')).toBeDefined();
   });
 });

@@ -2,295 +2,451 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState } from 'react';
-import { useSession } from 'next-auth/react';
-import Navbar from '../../../components/Navbar';
+import { useState, useRef, useEffect } from 'react';
 import { useChat } from 'ai/react';
+import Navbar from '../../../components/Navbar';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { toast } from 'sonner';
+import { Search, Send, ExternalLink, Bot, User } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-interface Result {
+interface ThesisResult {
   id: string;
   title: string;
-  abstract: string;
-  authors: string[];
+  abstract_id: string;
+  abstract_en: string;
+  author: string;
   year: number;
-  division: string;
-  url: string;
-  keywords: string[];
+  degree_type: string;
+  division_name: string;
+  division_code: string;
+  eprint_url: string;
+  subject_codes: string[];
   score?: number;
 }
 
+const FAKULTAS_OPTIONS = [
+  { value: 'FIP',    label: 'FIP — Fakultas Ilmu Pendidikan' },
+  { value: 'FPIPS',  label: 'FPIPS — Fak. Pendidikan Ilmu Pengetahuan Sosial' },
+  { value: 'FPBS',   label: 'FPBS — Fak. Pendidikan Bahasa dan Sastra' },
+  { value: 'FPMIPA', label: 'FPMIPA — Fak. Pendidikan MIPA' },
+  { value: 'FPTK',   label: 'FPTK — Fak. Pendidikan Teknologi dan Kejuruan' },
+  { value: 'FPOK',   label: 'FPOK — Fak. Pendidikan Olahraga dan Kesehatan' },
+  { value: 'FPEB',   label: 'FPEB — Fak. Pendidikan Ekonomi dan Bisnis' },
+  { value: 'FPSD',   label: 'FPSD — Fak. Pendidikan Seni dan Desain' },
+];
+
+function renderMarkdown(content: string) {
+  const lines = content.split('\n');
+  return lines.map((line, idx) => {
+    let cleanLine = line;
+    // Bold formatting: **text**
+    cleanLine = cleanLine.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+    // Headers
+    if (cleanLine.startsWith('### ')) {
+      return (
+        <h3 key={idx} className="text-base md:text-lg font-semibold mt-3 mb-1 text-foreground" dangerouslySetInnerHTML={{ __html: cleanLine.replace('### ', '') }} />
+      );
+    }
+    if (cleanLine.startsWith('## ')) {
+      return (
+        <h2 key={idx} className="text-lg md:text-xl font-bold mt-4 mb-2 text-foreground" dangerouslySetInnerHTML={{ __html: cleanLine.replace('## ', '') }} />
+      );
+    }
+    if (cleanLine.startsWith('# ')) {
+      return (
+        <h1 key={idx} className="text-xl md:text-2xl font-bold mt-4 mb-2 text-foreground" dangerouslySetInnerHTML={{ __html: cleanLine.replace('# ', '') }} />
+      );
+    }
+
+    // List items
+    if (cleanLine.trim().startsWith('- ') || cleanLine.trim().startsWith('* ')) {
+      const bulletContent = cleanLine.replace(/^[\s]*[-*]\s+/, '');
+      return (
+        <li key={idx} className="ml-4 list-disc pl-1 text-sm md:text-base leading-relaxed text-muted-foreground" dangerouslySetInnerHTML={{ __html: bulletContent }} />
+      );
+    }
+
+    // Empty lines
+    if (!cleanLine.trim()) {
+      return <div key={idx} className="h-2" />;
+    }
+
+    // Normal paragraph
+    return (
+      <p key={idx} className="text-sm md:text-base leading-relaxed mb-1" dangerouslySetInnerHTML={{ __html: cleanLine }} />
+    );
+  });
+}
+
 export default function SearchDashboard() {
-  const { data: session } = useSession();
-  const [activeTab, setActiveTab] = useState<'semantic' | 'nl'>('semantic');
+  // Tab states
+  const [activeTab, setActiveTab] = useState('semantic');
+
+  // Semantic search state
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Result[]>([]);
+  const [results, setResults] = useState<ThesisResult[]>([]);
   const [yearFrom, setYearFrom] = useState('');
   const [yearTo, setYearTo] = useState('');
   const [division, setDivision] = useState('');
+  const [degreeType, setDegreeType] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [searched, setSearched] = useState(false);
 
-  // Vercel AI SDK chat integration
-  const {
-    messages,
-    input,
-    handleInputChange,
-    handleSubmit: handleChatSubmit,
-    error: chatError,
-    isLoading: chatLoading
-  } = useChat({
+  // Chat
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const { messages, input, handleInputChange, handleSubmit: handleChatSubmit, isLoading: chatLoading } = useChat({
     api: '/api/chat',
+    onError: (err) => toast.error('Terjadi kesalahan: ' + err.message),
   });
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Lock body scroll on RAG Chat active tab
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      document.body.classList.add('overflow-hidden');
+    } else {
+      document.body.classList.remove('overflow-hidden');
+    }
+    return () => {
+      document.body.classList.remove('overflow-hidden');
+    };
+  }, [activeTab]);
 
   const handleSemanticSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!query.trim()) return;
     setLoading(true);
-    setError(null);
+    setSearched(true);
+    setResults([]);
     try {
-      const filters: any = {};
+      const filters: Record<string, unknown> = {};
       if (yearFrom) filters.yearFrom = parseInt(yearFrom);
-      if (yearTo) filters.yearTo = parseInt(yearTo);
+      if (yearTo)   filters.yearTo   = parseInt(yearTo);
       if (division) filters.division = division;
+      if (degreeType) filters.degree_type = degreeType;
 
-      const response = await fetch('/api/search', {
+      const res = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, filters }),
+        body: JSON.stringify({ query: query.trim(), filters }),
       });
 
-      if (!response.ok) {
-        if (response.status === 429) {
-          setError("Terlalu banyak permintaan (Rate limit terlampaui). Silakan tunggu satu menit.");
-        } else {
-          setError("Terjadi kesalahan pada sistem. Silakan coba beberapa saat lagi.");
-        }
-        setResults([]);
+      if (res.status === 429) {
+        toast.error('Terlalu banyak permintaan. Tunggu sebentar lalu coba lagi.');
         return;
       }
-
-      const data = await response.json();
-      setResults(data.results || []);
-    } catch (err) {
-      console.error(err);
-      setError("Gagal terhubung ke server.");
-      setResults([]);
+      if (!res.ok) {
+        toast.error('Gagal mengambil hasil pencarian.');
+        return;
+      }
+      const data = await res.json();
+      setResults(data.results ?? []);
+      if ((data.results ?? []).length === 0) toast.info('Tidak ditemukan hasil untuk pencarian ini.');
+    } catch {
+      toast.error('Gagal terhubung ke server.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div>
-      <Navbar userEmail={session?.user?.email || ''} />
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
 
-      <div className="dashboard-container">
-        <div className="tab-switcher">
-          <button
-            className={`tab-btn ${activeTab === 'semantic' ? 'active' : ''}`}
-            onClick={() => setActiveTab('semantic')}
-          >
-            Pencarian Semantik (Retrieval)
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'nl' ? 'active' : ''}`}
-            onClick={() => setActiveTab('nl')}
-          >
-            Natural Language Chat (RAG)
-          </button>
-        </div>
+      <main className={cn(
+        "flex-1 flex flex-col min-h-0 w-full",
+        activeTab === 'chat'
+          ? "h-[calc(100dvh-3.5rem)] overflow-hidden"
+          : "mx-auto w-full max-w-5xl px-4 py-6"
+      )}>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className={cn(
+          "flex-1 flex flex-col min-h-0 w-full",
+          activeTab === 'chat' ? "space-y-0" : "space-y-6"
+        )}>
+          <div className={cn(
+            activeTab === 'chat' && "px-4 pt-4 pb-2 shrink-0 w-full"
+          )}>
+            <TabsList className={cn(
+              "grid grid-cols-2",
+              activeTab === 'chat' ? "w-full max-w-md mx-auto" : "w-full max-w-md"
+            )}>
+              <TabsTrigger value="semantic">Pencarian Semantik</TabsTrigger>
+              <TabsTrigger value="chat">Natural Language (RAG)</TabsTrigger>
+            </TabsList>
+          </div>
 
-        {activeTab === 'semantic' ? (
-          <div>
-            <form onSubmit={handleSemanticSearch} className="search-control-panel glass">
-              <div className="search-input-wrapper">
-                <input
-                  type="text"
-                  placeholder="Ketik topik skripsi yang ingin dicari (contoh: media pembelajaran interaktif berbasis web)"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="search-input"
-                  required
-                />
-                <button type="submit" className="btn btn-primary" disabled={loading}>
+          {/* ── SEMANTIC SEARCH ── */}
+          <TabsContent value="semantic" className="space-y-4">
+            <form onSubmit={handleSemanticSearch} className="space-y-3">
+              {/* Main search bar */}
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="semantic-search-input"
+                    className="pl-9"
+                    placeholder="Cari topik skripsi, misalnya: media pembelajaran berbasis web..."
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    required
+                  />
+                </div>
+                <Button type="submit" disabled={loading}>
                   {loading ? 'Mencari...' : 'Cari'}
-                </button>
+                </Button>
               </div>
 
-              <div className="filter-row">
-                <div className="filter-group">
-                  <label>Tahun Dari</label>
-                  <input
-                    type="number"
-                    value={yearFrom}
-                    onChange={(e) => setYearFrom(e.target.value)}
-                    className="filter-num"
-                    placeholder="2018"
-                  />
-                </div>
-                <div className="filter-group">
-                  <label>Tahun Sampai</label>
-                  <input
-                    type="number"
-                    value={yearTo}
-                    onChange={(e) => setYearTo(e.target.value)}
-                    className="filter-num"
-                    placeholder="2025"
-                  />
-                </div>
-                <div className="filter-group">
-                  <label>Fakultas / Prodi</label>
-                  <select
-                     value={division}
-                     onChange={(e) => setDivision(e.target.value)}
-                     className="filter-select"
-                  >
-                    <option value="">Semua</option>
-                    <option value="FIP">FIP</option>
-                    <option value="FPIPS">FPIPS</option>
-                    <option value="FPBS">FPBS</option>
-                    <option value="FPMIPA">FPMIPA</option>
-                    <option value="FPTK">FPTK</option>
-                    <option value="FPOK">FPOK</option>
-                    <option value="FPEB">FPEB</option>
-                    <option value="FPSD">FPSD</option>
-                  </select>
-                </div>
+              {/* Filters */}
+              <div className="flex flex-wrap gap-2">
+                <Input
+                  id="year-from"
+                  type="number"
+                  placeholder="Tahun dari"
+                  className="w-32"
+                  value={yearFrom}
+                  onChange={(e) => setYearFrom(e.target.value)}
+                  min={1900}
+                  max={2100}
+                />
+                <Input
+                  id="year-to"
+                  type="number"
+                  placeholder="Tahun sampai"
+                  className="w-36"
+                  value={yearTo}
+                  onChange={(e) => setYearTo(e.target.value)}
+                  min={1900}
+                  max={2100}
+                />
+                <Select value={division} onValueChange={setDivision}>
+                  <SelectTrigger id="faculty-filter" className="w-52">
+                    <SelectValue placeholder="Semua Fakultas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Fakultas</SelectItem>
+                    {FAKULTAS_OPTIONS.map((f) => (
+                      <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={degreeType} onValueChange={setDegreeType}>
+                  <SelectTrigger id="degree-filter" className="w-32">
+                    <SelectValue placeholder="Semua Jenjang" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Jenjang</SelectItem>
+                    <SelectItem value="S1">S1</SelectItem>
+                    <SelectItem value="S2">S2</SelectItem>
+                    <SelectItem value="S3">S3</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </form>
 
-            {error && (
-              <div
-                className="alert-box glass"
-                style={{
-                  padding: '1rem',
-                  marginBottom: '1.5rem',
-                  border: '1px solid var(--danger)',
-                  borderRadius: '8px',
-                  color: 'var(--danger)',
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
-                }}
-              >
-                <span>⚠️</span>
-                <span>{error}</span>
-              </div>
-            )}
+            <Separator />
 
-            {loading && (
-              <div
-                style={{
-                  textAlign: 'center',
-                  padding: '2rem',
-                  color: 'var(--accent)',
-                  fontSize: '1.1rem',
-                  fontWeight: 500
-                }}
-              >
-                Mencari data skripsi...
+            {/* Results */}
+            {loading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardContent className="p-4 space-y-2">
+                      <Skeleton className="h-5 w-3/4" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-5/6" />
+                      <div className="flex gap-2 pt-1">
+                        <Skeleton className="h-5 w-16 rounded-full" />
+                        <Skeleton className="h-5 w-16 rounded-full" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-            )}
-
-            {!loading && !error && (
-              <div className="results-grid">
-                {results.length > 0 ? (
-                  results.map((r) => (
-                    <div key={r.id} className="result-card glass">
-                      <div className="result-header">
-                        <a href={r.url} target="_blank" rel="noreferrer" className="result-title">
-                          {r.title}
-                        </a>
+            ) : searched && results.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground text-sm">
+                Tidak ada hasil untuk &ldquo;{query}&rdquo;.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {results.map((r) => (
+                  <Card key={r.id} className="transition-shadow hover:shadow-md">
+                    <CardHeader className="pb-2 pt-4 px-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <CardTitle className="text-sm font-semibold leading-snug">
+                          <a
+                            href={r.eprint_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hover:underline underline-offset-4 inline-flex items-center gap-1"
+                          >
+                            {r.title}
+                            <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
+                          </a>
+                        </CardTitle>
                         {r.score !== undefined && (
-                          <span className="result-score">Skor: {r.score.toFixed(3)}</span>
+                          <Badge variant="secondary" className="shrink-0 text-xs">
+                            {(r.score * 100).toFixed(1)}%
+                          </Badge>
                         )}
                       </div>
-                      <p className="result-abstract">{r.abstract}</p>
-                      <div className="result-meta">
-                        <span>Penulis: {r.authors.join(', ')}</span>
-                        <span>Tahun: {r.year}</span>
-                        <span>Fakultas: {r.division}</span>
-                      </div>
-                      {r.keywords.length > 0 && (
-                        <div className="result-tags">
-                          {r.keywords.map((kw, idx) => (
-                            <span key={idx} className="tag">
-                              {kw}
-                            </span>
+                      <CardDescription className="text-xs">
+                        {r.author} · {r.year} · {r.degree_type} · {r.division_name}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-4 space-y-2">
+                      <p className="text-sm text-muted-foreground line-clamp-3">
+                        {r.abstract_id || r.abstract_en || '—'}
+                      </p>
+                      {r.subject_codes.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {r.subject_codes.slice(0, 5).map((code, i) => (
+                            <Badge key={i} variant="outline" className="text-xs px-1.5 py-0">
+                              {code}
+                            </Badge>
                           ))}
                         </div>
                       )}
-                    </div>
-                  ))
-                ) : (
-                  <p style={{ color: 'var(--text-secondary)', textAlign: 'center' }}>
-                    Tidak ada hasil. Silakan lakukan pencarian.
-                  </p>
-                )}
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             )}
-          </div>
-        ) : (
-          <div className="chat-container glass">
-            {chatError && (
-              <div
-                className="alert-box glass"
-                style={{
-                  padding: '0.75rem 1rem',
-                  marginBottom: '1rem',
-                  border: '1px solid var(--danger)',
-                  borderRadius: '8px',
-                  color: 'var(--danger)',
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  fontSize: '0.9rem'
-                }}
-              >
-                <span>⚠️</span>
-                <span>Terjadi kesalahan pada obrolan: {chatError.message}</span>
-              </div>
-            )}
+          </TabsContent>
 
-            <div className="chat-history">
-              {messages.map((m) => (
-                <div key={m.id} className={`chat-bubble ${m.role}`}>
-                  <strong>{m.role === 'user' ? 'Anda: ' : 'CariSkripsi AI: '}</strong>
-                  <div style={{ whiteSpace: 'pre-wrap', marginTop: '0.5rem' }}>{m.content}</div>
-                </div>
-              ))}
-              {chatLoading && (
-                <div className="chat-bubble assistant" style={{ opacity: 0.7 }}>
-                  <strong>CariSkripsi AI: </strong>
-                  <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                    <span>Sedang merumuskan jawaban</span>
-                    <span className="dot-flashing">...</span>
+          {/* ── RAG CHAT ── */}
+          <TabsContent
+            value="chat"
+            className="flex-1 min-h-0 m-0 p-0 border-0 flex flex-col focus-visible:ring-0 focus-visible:ring-offset-0"
+          >
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 chat-scroll bg-background">
+              <div className="max-w-3xl mx-auto w-full space-y-6">
+                {messages.length === 0 && (
+                  <div className="h-full py-20 flex flex-col items-center justify-center text-center text-muted-foreground text-sm gap-3">
+                    <div className="h-12 w-12 rounded-2xl bg-muted/50 border border-border/50 flex items-center justify-center text-foreground mb-2">
+                      <Bot className="h-6 w-6" />
+                    </div>
+                    <p className="text-base md:text-lg font-semibold text-foreground">
+                      Tanyakan apapun tentang skripsi di repositori UPI.
+                    </p>
+                    <p className="text-sm max-w-md">
+                      Contoh: <em>&ldquo;Apa saja penelitian tentang pembelajaran berbasis game?&rdquo;</em>
+                    </p>
                   </div>
-                </div>
-              )}
+                )}
+                {messages.map((m) => (
+                  <div
+                    key={m.id}
+                    className={cn(
+                      'flex gap-3 text-sm md:text-base w-full',
+                      m.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+                    )}
+                  >
+                    <div className={cn(
+                      'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border',
+                      m.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                    )}>
+                      {m.role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                    </div>
+                    <div className={cn(
+                      'px-4 py-2.5 max-w-[85%] md:max-w-[80%]',
+                      m.role === 'user'
+                        ? 'bg-primary text-primary-foreground rounded-2xl rounded-tr-sm whitespace-pre-wrap'
+                        : 'bg-muted/50 border border-border/50 text-foreground rounded-2xl rounded-tl-sm'
+                    )}>
+                      {m.role === 'user' ? m.content : (
+                        <div className="space-y-1">
+                          {renderMarkdown(m.content)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div className="flex gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-muted">
+                      <Bot className="h-4 w-4" />
+                    </div>
+                    <div className="px-4 py-2.5 bg-muted/50 border border-border/50 rounded-2xl rounded-tl-sm flex items-center">
+                      <span className="inline-flex gap-1 text-foreground/75 font-bold">
+                        <span className="animate-bounce [animation-delay:0ms]">.</span>
+                        <span className="animate-bounce [animation-delay:150ms]">.</span>
+                        <span className="animate-bounce [animation-delay:300ms]">.</span>
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
             </div>
 
-            <form onSubmit={handleChatSubmit} className="search-input-wrapper">
-              <input
-                type="text"
-                placeholder="Tanyakan sesuatu tentang skripsi UPI..."
-                value={input}
-                onChange={handleInputChange}
-                className="search-input"
-                required
-              />
-              <button type="submit" className="btn btn-primary" disabled={chatLoading}>
-                {chatLoading ? 'Mengirim...' : 'Kirim'}
-              </button>
-            </form>
-          </div>
-        )}
-      </div>
+            {/* Input */}
+            <div className="border-t bg-background w-full shrink-0 py-3 md:py-4">
+              <div className="max-w-3xl mx-auto w-full px-4 space-y-2">
+                <form
+                  onSubmit={handleChatSubmit}
+                  className="flex gap-2"
+                >
+                  <Input
+                    id="chat-input"
+                    placeholder="Tanyakan sesuatu tentang skripsi UPI..."
+                    value={input}
+                    onChange={handleInputChange}
+                    disabled={chatLoading}
+                    className="flex-1 text-sm md:text-base h-10 md:h-11 px-4"
+                  />
+                  <Button type="submit" size="icon" className="h-10 w-10 md:h-11 md:w-11 shrink-0" disabled={chatLoading || !input.trim()} aria-label="Kirim">
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </form>
+                <p className="text-[10px] text-center text-muted-foreground leading-normal">
+                  Dataset berlisensi{' '}
+                  <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer" className="underline hover:text-foreground">
+                    CC BY-SA 4.0
+                  </a>{' '}
+                  —{' '}
+                  <a href="https://www.kaggle.com/datasets/arsyapermana/repository-universitas-pendidikan-indonesia-2025" target="_blank" rel="noreferrer" className="underline hover:text-foreground">
+                    Repositori UPI
+                  </a>{' '}
+                  · 92.482 karya ilmiah
+                </p>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </main>
 
-      <footer className="license-footer" style={{ textAlign: 'center', padding: '2rem 0', marginTop: '2rem', borderTop: '1px solid var(--border-color)' }}>
-        Dataset berlisensi CC BY-SA 4.0 — Repositori UPI
-      </footer>
+      {activeTab !== 'chat' && (
+        <footer className="border-t py-4 text-center text-xs text-muted-foreground">
+          Dataset berlisensi{' '}
+          <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer" className="underline underline-offset-2">
+            CC BY-SA 4.0
+          </a>{' '}
+          —{' '}
+          <a href="https://www.kaggle.com/datasets/arsyapermana/repository-universitas-pendidikan-indonesia-2025" target="_blank" rel="noreferrer" className="underline underline-offset-2">
+            Repositori UPI
+          </a>{' '}
+          · 92.482 karya ilmiah
+        </footer>
+      )}
     </div>
   );
 }
