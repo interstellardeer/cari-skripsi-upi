@@ -42,13 +42,17 @@ describe('Qdrant Client Wrapper', () => {
         distance: 'Cosine',
       },
     });
-    expect(mockCreatePayloadIndex).toHaveBeenCalledTimes(2);
+    expect(mockCreatePayloadIndex).toHaveBeenCalledTimes(3);
     expect(mockCreatePayloadIndex).toHaveBeenNthCalledWith(1, 'theses', {
       field_name: 'year',
       field_schema: 'integer',
     });
     expect(mockCreatePayloadIndex).toHaveBeenNthCalledWith(2, 'theses', {
-      field_name: 'division',
+      field_name: 'subject_codes',
+      field_schema: 'keyword',
+    });
+    expect(mockCreatePayloadIndex).toHaveBeenNthCalledWith(3, 'theses', {
+      field_name: 'degree_type',
       field_schema: 'keyword',
     });
   });
@@ -73,12 +77,15 @@ describe('Qdrant Client Wrapper', () => {
         payload: {
           id: '1',
           title: 'Title',
-          abstract: 'Abstract',
-          authors: ['Author'],
+          abstract_id: 'Abstract',
+          abstract_en: 'Abstract EN',
+          author: 'Author',
           year: 2024,
-          division: 'FIP',
-          url: 'https://repository.upi.edu/1',
-          keywords: ['keyword'],
+          degree_type: 'S1',
+          division_name: 'FIP',
+          division_code: 'FIP',
+          eprint_url: 'https://repository.upi.edu/1',
+          subject_codes: ['keyword'],
         },
       },
     ];
@@ -88,7 +95,7 @@ describe('Qdrant Client Wrapper', () => {
     expect(mockUpsert).toHaveBeenCalledWith('theses', {
       points: [
         {
-          id: '1',
+          id: 1,
           vector: [0.1, 0.2],
           payload: points[0].payload,
         },
@@ -99,17 +106,20 @@ describe('Qdrant Client Wrapper', () => {
   it('should search using the client and parse results correctly', async () => {
     mockSearch.mockResolvedValue([
       {
-        id: 'thesis-1',
+        id: 1,
         score: 0.88,
         payload: {
           id: 'thesis-1',
           title: 'Metode Pembelajaran',
-          abstract: 'Abstract tesis...',
-          authors: ['Dedi'],
+          abstract_id: 'Abstract tesis...',
+          abstract_en: 'Abstract EN',
+          author: 'Dedi',
           year: 2024,
-          division: 'FIP',
-          url: 'https://repository.upi.edu/987',
-          keywords: ['pendidikan'],
+          degree_type: 'S1',
+          division_name: 'FIP',
+          division_code: 'FIP',
+          eprint_url: 'https://repository.upi.edu/987',
+          subject_codes: ['FIP'],
         },
       },
     ]);
@@ -123,7 +133,7 @@ describe('Qdrant Client Wrapper', () => {
       filter: {
         must: [
           { key: 'year', range: { gte: 2020 } },
-          { key: 'division', match: { value: 'FIP' } },
+          { key: 'subject_codes', match: { value: 'FIP' } },
         ],
       },
     }));

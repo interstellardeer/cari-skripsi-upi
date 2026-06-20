@@ -8,14 +8,19 @@ export async function runIngestionPipeline(filePath: string): Promise<void> {
 
   if (records.length === 0) return;
 
+  const maxRecordsEnv = process.env.MAX_INGEST_RECORDS;
+  const maxRecords = maxRecordsEnv ? parseInt(maxRecordsEnv, 10) : undefined;
+  const recordsToIngest = maxRecords ? records.slice(0, maxRecords) : records;
+  console.log(`Starting ingestion of ${recordsToIngest.length} records (out of ${records.length} parsed)...`);
+
   // 1. Get embedding length from model by embedding a test word
   const testEmbed = await getEmbedding('test');
   const embeddingDim = testEmbed.length;
   await ensureCollectionExists(embeddingDim);
 
   const batchSize = 100;
-  for (let i = 0; i < records.length; i += batchSize) {
-    const chunk = records.slice(i, i + batchSize);
+  for (let i = 0; i < recordsToIngest.length; i += batchSize) {
+    const chunk = recordsToIngest.slice(i, i + batchSize);
     console.log(`Processing batch ${i / batchSize + 1} (${chunk.length} items)...`);
 
     const textsToEmbed = chunk.map((record) => `${record.title} — ${record.abstract_id}`);

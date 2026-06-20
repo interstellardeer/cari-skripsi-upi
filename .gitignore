@@ -19,3 +19,6 @@ data/
 # Tooling
 .turbo
 .vercel
+.docs/superpowers
+.superpowers/
+.claude/

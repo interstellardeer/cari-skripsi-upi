@@ -40,7 +40,12 @@ export async function ensureCollectionExists(dimension: number): Promise<void> {
     });
 
     await client.createPayloadIndex(COLLECTION_NAME, {
-      field_name: 'division',
+      field_name: 'subject_codes',
+      field_schema: 'keyword',
+    });
+
+    await client.createPayloadIndex(COLLECTION_NAME, {
+      field_name: 'degree_type',
       field_schema: 'keyword',
     });
   }
@@ -51,11 +56,15 @@ export async function upsertTheses(
 ): Promise<void> {
   const client = getQdrantClient();
   await client.upsert(COLLECTION_NAME, {
-    points: points.map(p => ({
-      id: p.id,
-      vector: p.vector,
-      payload: p.payload,
-    })),
+    points: points.map(p => {
+      const parsedId = parseInt(p.id, 10);
+      const qdrantId = !isNaN(parsedId) && String(parsedId) === p.id ? parsedId : p.id;
+      return {
+        id: qdrantId,
+        vector: p.vector,
+        payload: p.payload,
+      };
+    }),
   });
 }
 
@@ -74,10 +83,16 @@ export async function searchTheses(
       if (filters.yearTo !== undefined) rangeCond.lte = filters.yearTo;
       mustFilters.push({ key: 'year', range: rangeCond });
     }
-    if (filters.division) {
+    if (filters.division && filters.division !== 'all') {
       mustFilters.push({
-        key: 'division',
+        key: 'subject_codes',
         match: { value: filters.division },
+      });
+    }
+    if (filters.degree_type && filters.degree_type !== 'all') {
+      mustFilters.push({
+        key: 'degree_type',
+        match: { value: filters.degree_type },
       });
     }
   }

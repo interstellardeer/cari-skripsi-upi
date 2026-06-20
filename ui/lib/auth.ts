@@ -12,7 +12,10 @@ export const authOptions: AuthOptions = {
   callbacks: {
     async signIn({ account, profile }) {
       if (account?.provider === 'google') {
-        return profile?.email?.toLowerCase().endsWith('@upi.edu') ?? false;
+        // Allow configuring the domain for local dev (e.g. @gmail.com)
+        // In production this must be @upi.edu
+        const allowedDomain = process.env.NEXTAUTH_ALLOWED_DOMAIN ?? '@upi.edu';
+        return profile?.email?.toLowerCase().endsWith(allowedDomain) ?? false;
       }
       return false;
     },
