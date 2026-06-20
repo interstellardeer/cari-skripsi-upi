@@ -304,7 +304,7 @@ export default function SearchDashboard() {
                           max={2100}
                         />
                       </div>
-                      <div>
+                      <div className="pr-8 md:pr-0">
                         <label htmlFor="year-to" className="text-xs font-medium text-muted-foreground mb-1 block">Tahun Sampai</label>
                         <Input
                           id="year-to"
