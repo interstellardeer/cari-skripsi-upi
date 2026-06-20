@@ -1,5 +1,35 @@
 import { parseParquetFile } from './parse';
-import { getEmbedding, getEmbeddings, ensureCollectionExists, upsertTheses } from 'service';
+import { getEmbedding, getEmbeddings, ensureCollectionExists, upsertTheses, getQdrantClient } from 'service';
+
+async function getExistingIds(): Promise<Set<string>> {
+  try {
+    const client = getQdrantClient();
+    const existingIds = new Set<string>();
+    let offset = 0;
+    const limit = 1000;
+
+    while (true) {
+      const response = await client.scroll('theses', {
+        limit,
+        offset,
+        with_payload: false,
+      });
+
+      for (const point of response.points) {
+        existingIds.add(String(point.id));
+      }
+
+      if (response.points.length < limit) break;
+      offset += limit;
+    }
+
+    console.log(`Found ${existingIds.size} existing records in Qdrant.`);
+    return existingIds;
+  } catch (error) {
+    console.warn('Warning: Could not fetch existing IDs from Qdrant, will embed all records:', error);
+    return new Set();
+  }
+}
 
 export async function runIngestionPipeline(filePath: string): Promise<void> {
   console.log(`Starting ingestion pipeline for file: ${filePath}`);
@@ -18,10 +48,24 @@ export async function runIngestionPipeline(filePath: string): Promise<void> {
   const embeddingDim = testEmbed.length;
   await ensureCollectionExists(embeddingDim);
 
-  const batchSize = 100;
-  for (let i = 0; i < recordsToIngest.length; i += batchSize) {
-    const chunk = recordsToIngest.slice(i, i + batchSize);
-    console.log(`Processing batch ${i / batchSize + 1} (${chunk.length} items)...`);
+  // 2. Fetch existing IDs to avoid re-embedding
+  const existingIds = await getExistingIds();
+  const newRecords = recordsToIngest.filter(record => !existingIds.has(String(record.id)));
+  const skippedCount = recordsToIngest.length - newRecords.length;
+  
+  if (skippedCount > 0) {
+    console.log(`Skipping ${skippedCount} records that are already in Qdrant. Processing ${newRecords.length} new records.`);
+  }
+
+  if (newRecords.length === 0) {
+    console.log('All records are already in Qdrant. Nothing to ingest.');
+    return;
+  }
+
+  const batchSize = 500;
+  for (let i = 0; i < newRecords.length; i += batchSize) {
+    const chunk = newRecords.slice(i, i + batchSize);
+    console.log(`Processing batch ${i / batchSize + 1} of ${Math.ceil(newRecords.length / batchSize)} (${chunk.length} items)...`);
 
     const textsToEmbed = chunk.map((record) => `${record.title} — ${record.abstract_id}`);
     let vectors: number[][] | null = null;
