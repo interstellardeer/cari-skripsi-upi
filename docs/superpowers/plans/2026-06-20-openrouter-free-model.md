@@ -16,7 +16,7 @@
 
 ---
 
-### Task 1: Update API Route to openrouter/free
+### Task 18: Update API Route to openrouter/free
 
 **Files:**
 - Modify: `app/api/chat/route.ts:48-52`, `app/api/chat/route.ts:95-99`
