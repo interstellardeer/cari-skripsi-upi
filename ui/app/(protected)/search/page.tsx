@@ -169,7 +169,7 @@ export default function SearchDashboard() {
       <Navbar />
 
       <main className="flex-1 flex flex-col min-h-0 w-full h-[calc(100dvh-3.5rem)] overflow-hidden bg-background">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 w-full overflow-hidden">
           <div className="px-4 pt-4 pb-2 shrink-0 w-full">
             <TabsList className="grid grid-cols-2 w-full max-w-md mx-auto">
               <TabsTrigger value="semantic">Pencarian Semantik</TabsTrigger>
@@ -178,7 +178,7 @@ export default function SearchDashboard() {
           </div>
 
           {/* ── SEMANTIC SEARCH ── */}
-          <TabsContent value="semantic" className="flex-1 min-h-0 m-0 p-0 border-0 flex flex-col focus-visible:ring-0 focus-visible:ring-offset-0">
+          <TabsContent value="semantic" className="flex-1 min-h-0 m-0 p-0 border-0 flex flex-col overflow-hidden focus-visible:ring-0 focus-visible:ring-offset-0">
             {/* Scrollable results area */}
             <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 chat-scroll bg-background">
               <div className="max-w-3xl mx-auto w-full space-y-6">
@@ -393,7 +393,7 @@ export default function SearchDashboard() {
           {/* ── RAG CHAT ── */}
           <TabsContent
             value="chat"
-            className="flex-1 min-h-0 m-0 p-0 border-0 flex flex-col focus-visible:ring-0 focus-visible:ring-offset-0"
+            className="flex-1 min-h-0 m-0 p-0 border-0 flex flex-col overflow-hidden focus-visible:ring-0 focus-visible:ring-offset-0"
           >
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 chat-scroll bg-background">
