@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import Providers from '../components/Providers';
 
 export const metadata: Metadata = {
   title: 'CariSkripsi UPI',
@@ -14,9 +15,11 @@ export default function RootLayout({
   return (
     <html lang="id">
       <body>
-        <div className="app-container">
-          {children}
-        </div>
+        <Providers>
+          <div className="app-container">
+            {children}
+          </div>
+        </Providers>
       </body>
     </html>
   );

@@ -39,10 +39,15 @@ export async function POST(req: Request) {
     }
 
     // 1. Reformulate question using LLM to extract keyword query
+    const recentMessages = messages.slice(-5);
+    const transcript = recentMessages
+      .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+      .join('\n');
+
     const { text: queryText } = await generateText({
       model: openRouter('openai/gpt-4o-mini') as any,
-      system: 'Reformulasikan input akademik menjadi 2-5 kata kunci pencarian skripsi dalam Bahasa Indonesia. Tuliskan HANYA kata kunci tersebut tanpa tanda baca atau teks penjelasan.',
-      prompt: latestMessage,
+      system: 'Reformulasikan input akademik menjadi 2-5 kata kunci pencarian skripsi dalam Bahasa Indonesia berdasarkan konteks percakapan. Tuliskan HANYA kata kunci tersebut tanpa tanda baca atau teks penjelasan.',
+      prompt: transcript,
     });
 
     // 2. Embed the query text

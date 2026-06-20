@@ -13,11 +13,15 @@ vi.mock('hyparquet', () => ({
   ]),
 }));
 
-vi.mock('service', () => ({
-  getEmbedding: (text: string) => mockEmbed(text),
-  ensureCollectionExists: (dim: number) => mockEnsureColl(dim),
-  upsertTheses: (points: any[]) => mockUpsert(points),
-}));
+vi.mock('service', async () => {
+  const { ThesisRecordSchema } = await import('../../service/src/types');
+  return {
+    ThesisRecordSchema,
+    getEmbedding: (text: string) => mockEmbed(text),
+    ensureCollectionExists: (dim: number) => mockEnsureColl(dim),
+    upsertTheses: (points: any[]) => mockUpsert(points),
+  };
+});
 
 describe('Ingestion Pipeline', () => {
   it('should run parsing, generate embeddings, and upsert in batches', async () => {
