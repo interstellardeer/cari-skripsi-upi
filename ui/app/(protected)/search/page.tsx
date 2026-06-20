@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useRef, useEffect } from 'react';
 import { useChat } from 'ai/react';
 import Navbar from '../../../components/Navbar';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -141,23 +141,30 @@ function DetailContent({ result, onClose: _onClose }: { result: ThesisResult; on
 
           {/* Action buttons */}
           <div className="flex flex-col gap-2">
-            <Button size="sm" className="w-full justify-start gap-2 text-xs h-9" asChild>
-              <a href={result.eprint_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2">
-                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                <span>Buka di Repositori UPI</span>
-              </a>
-            </Button>
-            <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-xs h-9" asChild>
-              <a
-                href={`https://scholar.google.com/citations?hl=en&view_op=search_authors&mauthors=${encodeURIComponent(result.author)}&btnG=`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2"
-              >
-                <Search className="h-3.5 w-3.5 shrink-0" />
-                <span>Cari Penulis di Google Scholar</span>
-              </a>
-            </Button>
+            <a
+              href={result.eprint_url}
+              target="_blank"
+              rel="noreferrer"
+              className={cn(
+                buttonVariants({ size: "sm" }),
+                "w-full justify-start gap-2 text-xs h-9"
+              )}
+            >
+              <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+              <span>Buka di Repositori UPI</span>
+            </a>
+            <a
+              href={`https://scholar.google.com/citations?hl=en&view_op=search_authors&mauthors=${encodeURIComponent(result.author)}&btnG=`}
+              target="_blank"
+              rel="noreferrer"
+              className={cn(
+                buttonVariants({ variant: "outline", size: "sm" }),
+                "w-full justify-start gap-2 text-xs h-9"
+              )}
+            >
+              <Search className="h-3.5 w-3.5 shrink-0" />
+              <span>Cari Penulis di Google Scholar</span>
+            </a>
           </div>
 
           {/* Subject codes */}

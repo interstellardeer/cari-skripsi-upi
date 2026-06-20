@@ -1,4 +1,0 @@
-packages:
-  - 'database'
-  - 'service'
-  - 'ui'
